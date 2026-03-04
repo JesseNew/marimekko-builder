@@ -1,0 +1,1394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!--
+   ______                            __
+  / ____/___  ____ ___  ____  __  __/ /____  _____
+ / /   / __ \/ __ `__ \/ __ \/ / / / __/ _ \/ ___/
+/ /___/ /_/ / / / / / / /_/ / /_/ / /_/  __/ /
+\____/\____/_/ /_/ /_/ .___/\__,_/\__/\___/_/
+                    /_/
+        Created with Perplexity Computer
+        https://www.perplexity.ai/computer
+-->
+
+<!-- Perplexity Computer Attribution — SEO Meta Tags -->
+<meta name="generator" content="Perplexity Computer">
+<meta name="author" content="Perplexity Computer">
+<meta property="og:see_also" content="https://www.perplexity.ai/computer">
+<link rel="author" href="https://www.perplexity.ai/computer">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Marimekko Chart Builder</title>
+<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+<style>
+/* ===== Reset & Base ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0d1117;
+  --surface: #161b22;
+  --surface-2: #1c2129;
+  --border: #30363d;
+  --border-light: rgba(48, 54, 61, 0.6);
+  --text: #e6edf3;
+  --text-muted: #8b949e;
+  --text-faint: #6e7681;
+  --accent: #58a6ff;
+  --accent-hover: #79b8ff;
+  --accent-bg: rgba(88, 166, 255, 0.1);
+  --danger: #f85149;
+  --danger-hover: #ff6a63;
+  --danger-bg: rgba(248, 81, 73, 0.1);
+  --success: #3fb950;
+  --success-bg: rgba(63, 185, 80, 0.15);
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --transition: 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+html, body {
+  height: 100%;
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* ===== Layout ===== */
+.app {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.panel-left {
+  width: 400px;
+  min-width: 400px;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.panel-left-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.panel-left-header h1 {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.panel-left-header h1 svg {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.panel-left-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 16px 20px;
+}
+
+.panel-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.panel-right-header {
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  background: var(--surface);
+}
+
+.panel-right-header h2 {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.chart-container {
+  flex: 1;
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.chart-container svg {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+/* ===== Scrollbar ===== */
+.panel-left-scroll::-webkit-scrollbar { width: 6px; }
+.panel-left-scroll::-webkit-scrollbar-track { background: transparent; }
+.panel-left-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.panel-left-scroll::-webkit-scrollbar-thumb:hover { background: var(--text-faint); }
+
+/* ===== Inputs ===== */
+input[type="text"],
+input[type="number"] {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  padding: 6px 10px;
+  font-size: 13px;
+  font-family: var(--font);
+  width: 100%;
+  transition: border-color var(--transition);
+  outline: none;
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-bg);
+}
+
+input[type="number"] {
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+input[type="color"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  padding: 2px;
+  background: var(--bg);
+  flex-shrink: 0;
+}
+
+input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+input[type="color"]::-webkit-color-swatch { border: none; border-radius: 2px; }
+
+/* ===== Buttons ===== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--font);
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all var(--transition);
+  white-space: nowrap;
+}
+
+.btn:active { transform: scale(0.97); }
+
+.btn-primary {
+  background: var(--accent);
+  color: #0d1117;
+  border-color: var(--accent);
+}
+
+.btn-primary:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-muted);
+  border-color: var(--border);
+}
+
+.btn-ghost:hover {
+  background: var(--surface-2);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.btn-danger-ghost {
+  background: transparent;
+  color: var(--text-faint);
+  border: none;
+  padding: 4px 6px;
+}
+
+.btn-danger-ghost:hover {
+  color: var(--danger);
+  background: var(--danger-bg);
+}
+
+.btn-add {
+  background: var(--accent-bg);
+  color: var(--accent);
+  border-color: transparent;
+  font-size: 12px;
+  padding: 4px 10px;
+}
+
+.btn-add:hover {
+  background: rgba(88, 166, 255, 0.18);
+}
+
+.btn-export {
+  background: var(--success);
+  color: #0d1117;
+  border-color: var(--success);
+  font-weight: 600;
+}
+
+.btn-export:hover {
+  background: #4ac95f;
+  border-color: #4ac95f;
+}
+
+.btn svg { flex-shrink: 0; }
+
+/* ===== Title Input ===== */
+.title-section {
+  margin-bottom: 16px;
+}
+
+.title-section label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  display: block;
+  margin-bottom: 6px;
+}
+
+.title-section input {
+  font-size: 15px;
+  font-weight: 600;
+  padding: 8px 12px;
+}
+
+/* ===== Collapsible Sections ===== */
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  cursor: pointer;
+  user-select: none;
+  transition: color var(--transition);
+}
+
+.section-header:hover { color: var(--accent); }
+
+.section-header .chevron {
+  transition: transform var(--transition);
+  color: var(--text-faint);
+  flex-shrink: 0;
+}
+
+.section-header .chevron.collapsed {
+  transform: rotate(-90deg);
+}
+
+.section-header .section-name {
+  font-size: 14px;
+  font-weight: 600;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.section-header .section-badge {
+  font-size: 11px;
+  color: var(--text-faint);
+  background: var(--bg);
+  padding: 1px 6px;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.section-body {
+  overflow: hidden;
+  transition: max-height 300ms cubic-bezier(0.16, 1, 0.3, 1), opacity 200ms ease;
+}
+
+.section-body.collapsed {
+  max-height: 0 !important;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ===== Column ===== */
+.column-block {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+
+.column-block > .section-header {
+  padding: 10px 12px;
+  border-bottom: 1px solid transparent;
+}
+
+.column-block > .section-header:not(.header-collapsed) {
+  border-bottom-color: var(--border);
+}
+
+.column-block > .section-body {
+  padding: 0 12px;
+}
+
+.column-block > .section-body:not(.collapsed) {
+  padding: 12px;
+}
+
+.field-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.field-row label {
+  font-size: 12px;
+  color: var(--text-muted);
+  width: 52px;
+  flex-shrink: 0;
+}
+
+.field-row input[type="text"],
+.field-row input[type="number"] {
+  flex: 1;
+}
+
+.field-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  justify-content: space-between;
+}
+
+/* ===== Stack ===== */
+.stack-block {
+  background: var(--surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+
+.stack-block > .section-header {
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+.stack-block > .section-body:not(.collapsed) {
+  padding: 10px;
+}
+
+.stack-block .section-name {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* ===== Bar (now collapsible) ===== */
+.bar-block {
+  background: var(--bg);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  margin-bottom: 6px;
+  overflow: hidden;
+}
+
+.bar-block > .section-header {
+  padding: 5px 8px;
+  font-size: 12px;
+}
+
+.bar-block > .section-body:not(.collapsed) {
+  padding: 8px;
+}
+
+.bar-block .section-name {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* ===== Sub-Stack ===== */
+.substack-block {
+  background: var(--surface);
+  border: 1px solid rgba(48, 54, 61, 0.4);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  margin-bottom: 4px;
+}
+
+.substack-block .field-row {
+  margin-bottom: 4px;
+}
+
+.substack-block .field-row:last-child {
+  margin-bottom: 0;
+}
+
+.substack-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.substack-header span {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-faint);
+}
+
+/* ===== Stacks/Bars/SubStacks Section Labels ===== */
+.stacks-section {
+  margin-top: 8px;
+}
+
+.stacks-label, .bars-label, .substacks-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-faint);
+  margin-bottom: 6px;
+}
+
+.bars-label {
+  font-weight: 500;
+  margin-top: 8px;
+}
+
+.substacks-label {
+  font-weight: 500;
+  margin-top: 6px;
+  font-size: 10px;
+}
+
+/* ===== Toast ===== */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(80px);
+  background: var(--success);
+  color: #0d1117;
+  padding: 10px 20px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 600;
+  z-index: 100;
+  opacity: 0;
+  transition: all 300ms cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ===== Tooltip ===== */
+.chart-tooltip {
+  position: fixed;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  font-size: 12px;
+  pointer-events: none;
+  z-index: 50;
+  opacity: 0;
+  transition: opacity 120ms ease;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  max-width: 260px;
+}
+
+.chart-tooltip.visible { opacity: 1; }
+.chart-tooltip .tt-name { font-weight: 600; color: var(--text); margin-bottom: 2px; }
+.chart-tooltip .tt-value { color: var(--text-muted); }
+.chart-tooltip .tt-parent { color: var(--text-faint); font-size: 11px; margin-top: 2px; }
+
+/* ===== Empty State ===== */
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-faint);
+}
+
+.empty-state svg {
+  margin-bottom: 12px;
+  color: var(--border);
+}
+
+.empty-state p {
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+/* ===== Footer ===== */
+.footer-attr {
+  padding: 8px 20px;
+  border-top: 1px solid var(--border);
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.footer-attr a {
+  font-size: 11px;
+  color: var(--text-faint);
+  text-decoration: none;
+  transition: color var(--transition);
+}
+
+.footer-attr a:hover {
+  color: var(--text-muted);
+}
+
+/* ===== Confirm Dialog ===== */
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+
+.confirm-overlay.show { opacity: 1; }
+
+.confirm-dialog {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  max-width: 360px;
+  width: 90%;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+}
+
+.confirm-dialog h3 {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.confirm-dialog p {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 20px;
+}
+
+.confirm-dialog .btn-row {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.confirm-dialog .btn-confirm-delete {
+  background: var(--danger);
+  color: white;
+  border-color: var(--danger);
+}
+
+.confirm-dialog .btn-confirm-delete:hover {
+  background: var(--danger-hover);
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 768px) {
+  .app {
+    flex-direction: column;
+    height: auto;
+    min-height: 100vh;
+  }
+  .panel-left {
+    width: 100%;
+    min-width: 0;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    max-height: 50vh;
+  }
+  .panel-right {
+    min-height: 50vh;
+  }
+  .chart-container {
+    padding: 16px;
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- Left Panel -->
+  <div class="panel-left">
+    <div class="panel-left-header">
+      <h1>
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="1" y="4" width="6" height="15" rx="1"/>
+          <rect x="7.5" y="1" width="5" height="18" rx="1"/>
+          <rect x="13" y="7" width="6" height="12" rx="1"/>
+        </svg>
+        Marimekko Builder
+      </h1>
+    </div>
+    <div class="panel-left-scroll" id="controls">
+      <!-- Controls rendered by JS -->
+    </div>
+    <div class="footer-attr">
+      <a href="https://www.perplexity.ai/computer" target="_blank" rel="noopener noreferrer">Created with Perplexity Computer</a>
+    </div>
+  </div>
+
+  <!-- Right Panel -->
+  <div class="panel-right">
+    <div class="panel-right-header">
+      <h2>Preview</h2>
+      <button class="btn btn-export" id="exportBtn" onclick="exportPNG()">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M7 1v9m0 0L4 7m3 3l3-3M1 11v1.5a.5.5 0 00.5.5h11a.5.5 0 00.5-.5V11"/>
+        </svg>
+        Export PNG
+      </button>
+    </div>
+    <div class="chart-container" id="chartContainer">
+      <!-- SVG chart rendered by D3 -->
+    </div>
+  </div>
+</div>
+
+<!-- Tooltip -->
+<div class="chart-tooltip" id="tooltip">
+  <div class="tt-name"></div>
+  <div class="tt-value"></div>
+  <div class="tt-parent"></div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast">Chart exported!</div>
+
+<!-- Confirm overlay -->
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-dialog">
+    <h3 id="confirmTitle">Delete column?</h3>
+    <p id="confirmMsg">This action cannot be undone.</p>
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="closeConfirm()">Cancel</button>
+      <button class="btn btn-confirm-delete" id="confirmBtn" onclick="confirmAction()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== STATE =====
+// Hierarchy: Column > Stack > Bar > Sub-Stack
+// Column width = proportional to column.value
+// Stack height within column = proportional to stack.value
+// Bars sit side-by-side (horizontally) within a stack, width proportional to bar.value
+// Sub-Stacks divide a bar vertically, height proportional to substack.value
+const state = {
+  chartTitle: "Regional Product Revenue",
+  columns: [
+    {
+      name: "North America",
+      value: 450,
+      color: "#58a6ff",
+      collapsed: false,
+      stacks: [
+        {
+          name: "Enterprise Software",
+          value: 200,
+          color: "#58a6ff",
+          collapsed: false,
+          bars: [
+            {
+              name: "Direct Sales",
+              value: 130,
+              color: "#3fb950",
+              collapsed: false,
+              substacks: [
+                { name: "New Deals", value: 80, color: "#3fb950" },
+                { name: "Renewals", value: 50, color: "#2ea043" }
+              ]
+            },
+            {
+              name: "Partners",
+              value: 70,
+              color: "#f0883e",
+              collapsed: true,
+              substacks: []
+            }
+          ]
+        },
+        {
+          name: "Cloud Services",
+          value: 160,
+          color: "#bc8cff",
+          collapsed: true,
+          bars: []
+        },
+        {
+          name: "Consulting",
+          value: 90,
+          color: "#f0883e",
+          collapsed: true,
+          bars: []
+        }
+      ]
+    },
+    {
+      name: "Europe",
+      value: 320,
+      color: "#bc8cff",
+      collapsed: true,
+      stacks: [
+        {
+          name: "Enterprise Software",
+          value: 140,
+          color: "#bc8cff",
+          collapsed: true,
+          bars: []
+        },
+        {
+          name: "Cloud Services",
+          value: 120,
+          color: "#da3633",
+          collapsed: true,
+          bars: []
+        },
+        {
+          name: "Consulting",
+          value: 60,
+          color: "#f0883e",
+          collapsed: true,
+          bars: []
+        }
+      ]
+    },
+    {
+      name: "Asia Pacific",
+      value: 280,
+      color: "#3fb950",
+      collapsed: true,
+      stacks: [
+        {
+          name: "Enterprise Software",
+          value: 100,
+          color: "#3fb950",
+          collapsed: true,
+          bars: []
+        },
+        {
+          name: "Cloud Services",
+          value: 130,
+          color: "#58a6ff",
+          collapsed: true,
+          bars: []
+        }
+      ]
+    }
+  ]
+};
+
+let pendingConfirm = null;
+
+// ===== ICONS =====
+const icons = {
+  chevron: `<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 2 8 6 4 10"/></svg>`,
+  plus: `<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="2" x2="6" y2="10"/><line x1="2" y1="6" x2="10" y2="6"/></svg>`,
+  trash: `<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 3 11 3"/><path d="M4 3V2a1 1 0 011-1h2a1 1 0 011 1v1"/><path d="M9.5 3l-.5 7.5a1 1 0 01-1 .5h-4a1 1 0 01-1-.5L2.5 3"/></svg>`,
+  chart: `<svg width="40" height="40" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="12" width="10" height="24" rx="2"/><rect x="15" y="4" width="10" height="32" rx="2"/><rect x="26" y="18" width="10" height="18" rx="2"/></svg>`
+};
+
+// ===== RENDER CONTROLS =====
+function renderControls() {
+  const container = document.getElementById('controls');
+  let html = '';
+
+  // Title
+  html += `
+    <div class="title-section">
+      <label>Chart Title</label>
+      <input type="text" value="${esc(state.chartTitle)}" oninput="state.chartTitle=this.value; renderChart()">
+    </div>
+  `;
+
+  // Columns
+  if (state.columns.length === 0) {
+    html += `
+      <div class="empty-state">
+        ${icons.chart}
+        <p>No columns yet. Add one to start building your chart.</p>
+      </div>
+    `;
+  }
+
+  state.columns.forEach((col, ci) => {
+    const colCollapsed = col.collapsed;
+    html += `
+      <div class="column-block">
+        <div class="section-header ${colCollapsed ? 'header-collapsed' : ''}" onclick="toggleCollapse('col', ${ci})">
+          <span class="chevron ${colCollapsed ? 'collapsed' : ''}">${icons.chevron}</span>
+          <span class="section-name" style="color:${col.color}">${esc(col.name) || 'Untitled Column'}</span>
+          <span class="section-badge">w: ${col.value}</span>
+        </div>
+        <div class="section-body ${colCollapsed ? 'collapsed' : ''}" ${!colCollapsed ? `style="max-height:9999px;opacity:1"` : ''}>
+          <div class="field-row">
+            <label>Name</label>
+            <input type="text" value="${esc(col.name)}" oninput="state.columns[${ci}].name=this.value; renderChart(); renderControls()">
+          </div>
+          <div class="field-row">
+            <label>Width</label>
+            <input type="number" value="${col.value}" min="1" oninput="state.columns[${ci}].value=Math.max(1, +this.value||1); renderChart()">
+            <input type="color" value="${col.color}" oninput="state.columns[${ci}].color=this.value; renderChart(); renderControls()">
+          </div>
+
+          <div class="stacks-section">
+            <div class="stacks-label">Stacks (${col.stacks.length})</div>
+            ${renderStacks(col, ci)}
+            <div style="display:flex;gap:6px;justify-content:space-between;margin-top:4px">
+              <button class="btn btn-add" onclick="addStack(${ci})">${icons.plus} Add Stack</button>
+              <button class="btn btn-danger-ghost" onclick="requestDelete('column', ${ci})" title="Delete column">${icons.trash}</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  });
+
+  html += `
+    <button class="btn btn-ghost" onclick="addColumn()" style="width:100%;justify-content:center;margin-top:4px">
+      ${icons.plus} Add Column
+    </button>
+  `;
+
+  container.innerHTML = html;
+}
+
+function renderStacks(col, ci) {
+  let html = '';
+  col.stacks.forEach((stack, si) => {
+    const sCollapsed = stack.collapsed;
+    html += `
+      <div class="stack-block">
+        <div class="section-header" onclick="toggleCollapse('stack', ${ci}, ${si})">
+          <span class="chevron ${sCollapsed ? 'collapsed' : ''}">${icons.chevron}</span>
+          <span class="section-name">${esc(stack.name) || 'Untitled Stack'}</span>
+          <span class="section-badge">h: ${stack.value}</span>
+        </div>
+        <div class="section-body ${sCollapsed ? 'collapsed' : ''}" ${!sCollapsed ? `style="max-height:9999px;opacity:1"` : ''}>
+          <div class="field-row">
+            <label>Name</label>
+            <input type="text" value="${esc(stack.name)}" oninput="state.columns[${ci}].stacks[${si}].name=this.value; renderChart()">
+          </div>
+          <div class="field-row">
+            <label>Height</label>
+            <input type="number" value="${stack.value}" min="1" oninput="state.columns[${ci}].stacks[${si}].value=Math.max(1, +this.value||1); renderChart()">
+            <input type="color" value="${stack.color}" oninput="state.columns[${ci}].stacks[${si}].color=this.value; renderChart()">
+          </div>
+
+          ${renderBars(stack, ci, si)}
+
+          <div style="display:flex;gap:6px;justify-content:space-between;margin-top:4px">
+            <button class="btn btn-add" onclick="addBar(${ci}, ${si})">${icons.plus} Add Bar</button>
+            <button class="btn btn-danger-ghost" onclick="requestDelete('stack', ${ci}, ${si})" title="Delete stack">${icons.trash}</button>
+          </div>
+        </div>
+      </div>
+    `;
+  });
+  return html;
+}
+
+function renderBars(stack, ci, si) {
+  if (stack.bars.length === 0) return '';
+  let html = '<div class="bars-label">Bars (' + stack.bars.length + ')</div>';
+  stack.bars.forEach((bar, bi) => {
+    const bCollapsed = bar.collapsed;
+    html += `
+      <div class="bar-block">
+        <div class="section-header" onclick="toggleCollapse('bar', ${ci}, ${si}, ${bi})">
+          <span class="chevron ${bCollapsed ? 'collapsed' : ''}">${icons.chevron}</span>
+          <span class="section-name">${esc(bar.name) || 'Untitled Bar'}</span>
+          <span class="section-badge">v: ${bar.value}</span>
+        </div>
+        <div class="section-body ${bCollapsed ? 'collapsed' : ''}" ${!bCollapsed ? `style="max-height:9999px;opacity:1"` : ''}>
+          <div class="field-row">
+            <label>Name</label>
+            <input type="text" value="${esc(bar.name)}" oninput="state.columns[${ci}].stacks[${si}].bars[${bi}].name=this.value; renderChart()">
+          </div>
+          <div class="field-row">
+            <label>Value</label>
+            <input type="number" value="${bar.value}" min="1" oninput="state.columns[${ci}].stacks[${si}].bars[${bi}].value=Math.max(1, +this.value||1); renderChart()">
+            <input type="color" value="${bar.color}" oninput="state.columns[${ci}].stacks[${si}].bars[${bi}].color=this.value; renderChart()">
+          </div>
+
+          ${renderSubStacks(bar, ci, si, bi)}
+
+          <div style="display:flex;gap:6px;justify-content:space-between;margin-top:4px">
+            <button class="btn btn-add" onclick="addSubStack(${ci}, ${si}, ${bi})">${icons.plus} Add Sub-Stack</button>
+            <button class="btn btn-danger-ghost" onclick="deleteBar(${ci}, ${si}, ${bi})" title="Delete bar">${icons.trash}</button>
+          </div>
+        </div>
+      </div>
+    `;
+  });
+  return html;
+}
+
+function renderSubStacks(bar, ci, si, bi) {
+  if (bar.substacks.length === 0) return '';
+  let html = '<div class="substacks-label">Sub-Stacks (' + bar.substacks.length + ')</div>';
+  bar.substacks.forEach((ss, ssi) => {
+    html += `
+      <div class="substack-block">
+        <div class="substack-header">
+          <span>Sub-Stack ${ssi + 1}</span>
+          <button class="btn btn-danger-ghost" onclick="deleteSubStack(${ci}, ${si}, ${bi}, ${ssi})" title="Delete sub-stack">${icons.trash}</button>
+        </div>
+        <div class="field-row">
+          <label>Name</label>
+          <input type="text" value="${esc(ss.name)}" oninput="state.columns[${ci}].stacks[${si}].bars[${bi}].substacks[${ssi}].name=this.value; renderChart()">
+        </div>
+        <div class="field-row">
+          <label>Value</label>
+          <input type="number" value="${ss.value}" min="1" oninput="state.columns[${ci}].stacks[${si}].bars[${bi}].substacks[${ssi}].value=Math.max(1, +this.value||1); renderChart()">
+          <input type="color" value="${ss.color}" oninput="state.columns[${ci}].stacks[${si}].bars[${bi}].substacks[${ssi}].color=this.value; renderChart()">
+        </div>
+      </div>
+    `;
+  });
+  return html;
+}
+
+// ===== ACTIONS =====
+function addColumn() {
+  const colors = ['#58a6ff', '#bc8cff', '#3fb950', '#f0883e', '#da3633', '#f778ba', '#e3b341'];
+  state.columns.push({
+    name: 'New Column',
+    value: 100,
+    color: colors[state.columns.length % colors.length],
+    collapsed: false,
+    stacks: [
+      {
+        name: 'Stack 1',
+        value: 60,
+        color: colors[state.columns.length % colors.length],
+        collapsed: false,
+        bars: []
+      }
+    ]
+  });
+  renderControls();
+  renderChart();
+}
+
+function addStack(ci) {
+  const col = state.columns[ci];
+  const colors = ['#58a6ff', '#bc8cff', '#3fb950', '#f0883e', '#da3633', '#f778ba'];
+  col.stacks.push({
+    name: 'New Stack',
+    value: 50,
+    color: colors[col.stacks.length % colors.length],
+    collapsed: false,
+    bars: []
+  });
+  renderControls();
+  renderChart();
+}
+
+function addBar(ci, si) {
+  const stack = state.columns[ci].stacks[si];
+  const colors = ['#3fb950', '#f0883e', '#58a6ff', '#bc8cff', '#e3b341', '#f778ba'];
+  stack.bars.push({
+    name: 'New Bar',
+    value: 30,
+    color: colors[stack.bars.length % colors.length],
+    collapsed: false,
+    substacks: []
+  });
+  renderControls();
+  renderChart();
+}
+
+function addSubStack(ci, si, bi) {
+  const bar = state.columns[ci].stacks[si].bars[bi];
+  const colors = ['#3fb950', '#2ea043', '#58a6ff', '#388bfd', '#bc8cff', '#a371f7', '#f0883e', '#d29922'];
+  bar.substacks.push({
+    name: 'New Sub-Stack',
+    value: 20,
+    color: colors[bar.substacks.length % colors.length]
+  });
+  renderControls();
+  renderChart();
+}
+
+function deleteBar(ci, si, bi) {
+  state.columns[ci].stacks[si].bars.splice(bi, 1);
+  renderControls();
+  renderChart();
+}
+
+function deleteSubStack(ci, si, bi, ssi) {
+  state.columns[ci].stacks[si].bars[bi].substacks.splice(ssi, 1);
+  renderControls();
+  renderChart();
+}
+
+function requestDelete(type, ci, si) {
+  const overlay = document.getElementById('confirmOverlay');
+  const title = document.getElementById('confirmTitle');
+  const msg = document.getElementById('confirmMsg');
+
+  if (type === 'column') {
+    const name = state.columns[ci].name || 'this column';
+    title.textContent = `Delete "${name}"?`;
+    msg.textContent = 'This will remove the column and all its contents.';
+    pendingConfirm = () => {
+      state.columns.splice(ci, 1);
+      renderControls();
+      renderChart();
+    };
+  } else if (type === 'stack') {
+    const name = state.columns[ci].stacks[si].name || 'this stack';
+    title.textContent = `Delete "${name}"?`;
+    msg.textContent = 'This will remove the stack and all its bars and sub-stacks.';
+    pendingConfirm = () => {
+      state.columns[ci].stacks.splice(si, 1);
+      renderControls();
+      renderChart();
+    };
+  }
+
+  overlay.style.display = 'flex';
+  requestAnimationFrame(() => overlay.classList.add('show'));
+}
+
+function closeConfirm() {
+  const overlay = document.getElementById('confirmOverlay');
+  overlay.classList.remove('show');
+  setTimeout(() => { overlay.style.display = 'none'; }, 200);
+  pendingConfirm = null;
+}
+
+function confirmAction() {
+  if (pendingConfirm) pendingConfirm();
+  closeConfirm();
+}
+
+function toggleCollapse(type, ci, si, bi) {
+  if (type === 'col') {
+    state.columns[ci].collapsed = !state.columns[ci].collapsed;
+  } else if (type === 'stack') {
+    state.columns[ci].stacks[si].collapsed = !state.columns[ci].stacks[si].collapsed;
+  } else if (type === 'bar') {
+    state.columns[ci].stacks[si].bars[bi].collapsed = !state.columns[ci].stacks[si].bars[bi].collapsed;
+  }
+  renderControls();
+}
+
+function esc(str) {
+  if (!str) return '';
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// ===== RENDER CHART =====
+function renderChart() {
+  const container = document.getElementById('chartContainer');
+  container.innerHTML = '';
+
+  if (state.columns.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        ${icons.chart}
+        <p>Add columns to see your chart</p>
+      </div>
+    `;
+    return;
+  }
+
+  const rect = container.getBoundingClientRect();
+  const margin = { top: 12, right: 12, bottom: 12, left: 12 };
+  const width = Math.max(300, rect.width - margin.left - margin.right);
+  const height = Math.max(200, rect.height - margin.top - margin.bottom);
+  const colGap = 3;
+  const stackGap = 2;
+  const barGap = 1;
+  const subStackGap = 1;
+
+  const totalValue = d3.sum(state.columns, d => d.value);
+  if (totalValue === 0) return;
+
+  const svg = d3.select(container)
+    .append('svg')
+    .attr('width', width + margin.left + margin.right)
+    .attr('height', height + margin.top + margin.bottom)
+    .attr('viewBox', `0 0 ${width + margin.left + margin.right} ${height + margin.top + margin.bottom}`);
+
+  const g = svg.append('g')
+    .attr('transform', `translate(${margin.left},${margin.top})`);
+
+  const totalColGap = colGap * Math.max(0, state.columns.length - 1);
+  const availableWidth = width - totalColGap;
+
+  let xOffset = 0;
+
+  state.columns.forEach((col, ci) => {
+    const colWidth = (col.value / totalValue) * availableWidth;
+    const totalStackValue = d3.sum(col.stacks, s => s.value);
+
+    if (totalStackValue === 0 || colWidth <= 0) {
+      xOffset += colWidth + colGap;
+      return;
+    }
+
+    const totalStackGapH = stackGap * Math.max(0, col.stacks.length - 1);
+    const availableHeight = height - totalStackGapH;
+    let yOffset = 0;
+
+    col.stacks.forEach((stack, si) => {
+      const stackHeight = (stack.value / totalStackValue) * availableHeight;
+
+      if (stack.bars.length > 0) {
+        // Bars sit side by side horizontally within the stack cell
+        const totalBarValue = d3.sum(stack.bars, b => b.value);
+        const numBars = stack.bars.length;
+        const totalBarGapW = barGap * Math.max(0, numBars - 1);
+        const availableBarWidth = colWidth - totalBarGapW;
+        let bxOffset = 0;
+
+        stack.bars.forEach((bar, bi) => {
+          const barWidth = (bar.value / totalBarValue) * availableBarWidth;
+
+          if (bar.substacks && bar.substacks.length > 0) {
+            // Sub-stacks divide the bar vertically
+            const totalSSValue = d3.sum(bar.substacks, ss => ss.value);
+            const numSS = bar.substacks.length;
+            const totalSSGap = subStackGap * Math.max(0, numSS - 1);
+            const availableSSHeight = stackHeight - totalSSGap;
+            let syOffset = 0;
+
+            bar.substacks.forEach((ss, ssi) => {
+              const ssHeight = (ss.value / totalSSValue) * availableSSHeight;
+
+              g.append('rect')
+                .attr('x', xOffset + bxOffset)
+                .attr('y', yOffset + syOffset)
+                .attr('width', Math.max(0, barWidth))
+                .attr('height', Math.max(0, ssHeight))
+                .attr('fill', ss.color)
+                .attr('rx', 1)
+                .style('cursor', 'pointer')
+                .on('mouseenter', function(event) {
+                  d3.select(this).attr('opacity', 0.82);
+                  showTooltip(event, ss.name, ss.value, `${col.name} › ${stack.name} › ${bar.name}`);
+                })
+                .on('mousemove', function(event) {
+                  moveTooltip(event);
+                })
+                .on('mouseleave', function() {
+                  d3.select(this).attr('opacity', 1);
+                  hideTooltip();
+                });
+
+              syOffset += ssHeight + subStackGap;
+            });
+          } else {
+            // Solid bar rectangle (no sub-stacks)
+            g.append('rect')
+              .attr('x', xOffset + bxOffset)
+              .attr('y', yOffset)
+              .attr('width', Math.max(0, barWidth))
+              .attr('height', Math.max(0, stackHeight))
+              .attr('fill', bar.color)
+              .attr('rx', 2)
+              .style('cursor', 'pointer')
+              .on('mouseenter', function(event) {
+                d3.select(this).attr('opacity', 0.82);
+                showTooltip(event, bar.name, bar.value, `${col.name} › ${stack.name}`);
+              })
+              .on('mousemove', function(event) {
+                moveTooltip(event);
+              })
+              .on('mouseleave', function() {
+                d3.select(this).attr('opacity', 1);
+                hideTooltip();
+              });
+          }
+
+          bxOffset += barWidth + barGap;
+        });
+      } else {
+        // Solid stack rectangle (no bars)
+        g.append('rect')
+          .attr('x', xOffset)
+          .attr('y', yOffset)
+          .attr('width', Math.max(0, colWidth))
+          .attr('height', Math.max(0, stackHeight))
+          .attr('fill', stack.color)
+          .attr('rx', 2)
+          .style('cursor', 'pointer')
+          .on('mouseenter', function(event) {
+            d3.select(this).attr('opacity', 0.82);
+            showTooltip(event, stack.name, stack.value, col.name);
+          })
+          .on('mousemove', function(event) {
+            moveTooltip(event);
+          })
+          .on('mouseleave', function() {
+            d3.select(this).attr('opacity', 1);
+            hideTooltip();
+          });
+      }
+
+      yOffset += stackHeight + stackGap;
+    });
+
+    xOffset += colWidth + colGap;
+  });
+}
+
+// ===== TOOLTIP =====
+function showTooltip(event, name, value, parent) {
+  const tt = document.getElementById('tooltip');
+  tt.querySelector('.tt-name').textContent = name;
+  tt.querySelector('.tt-value').textContent = 'Value: ' + value;
+  tt.querySelector('.tt-parent').textContent = parent || '';
+  tt.classList.add('visible');
+  moveTooltip(event);
+}
+
+function moveTooltip(event) {
+  const tt = document.getElementById('tooltip');
+  const x = event.clientX + 12;
+  const y = event.clientY - 8;
+  tt.style.left = x + 'px';
+  tt.style.top = y + 'px';
+}
+
+function hideTooltip() {
+  document.getElementById('tooltip').classList.remove('visible');
+}
+
+// ===== EXPORT PNG =====
+function exportPNG() {
+  const svgEl = document.querySelector('#chartContainer svg');
+  if (!svgEl) return;
+
+  // Clone and prepare SVG for export
+  const clone = svgEl.cloneNode(true);
+  clone.removeAttribute('class');
+  clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+
+  // Ensure no background
+  clone.style.background = 'transparent';
+
+  // Get actual dimensions
+  const vb = clone.getAttribute('viewBox');
+  const parts = vb ? vb.split(' ').map(Number) : [0, 0, 800, 600];
+  const w = parts[2];
+  const h = parts[3];
+
+  // 2x scale for retina
+  const scale = 2;
+  const canvasW = w * scale;
+  const canvasH = h * scale;
+
+  // Serialize
+  const serializer = new XMLSerializer();
+  const svgString = serializer.serializeToString(clone);
+  const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+  const url = URL.createObjectURL(svgBlob);
+
+  const img = new Image();
+  img.onload = function() {
+    const canvas = document.createElement('canvas');
+    canvas.width = canvasW;
+    canvas.height = canvasH;
+    const ctx = canvas.getContext('2d');
+    // Transparent background — don't fill
+    ctx.scale(scale, scale);
+    ctx.drawImage(img, 0, 0);
+    URL.revokeObjectURL(url);
+
+    canvas.toBlob(function(blob) {
+      if (!blob) return;
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'marimekko-chart.png';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(a.href);
+      showToast();
+    }, 'image/png');
+  };
+  img.src = url;
+}
+
+function showToast() {
+  const toast = document.getElementById('toast');
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2200);
+}
+
+// ===== INIT =====
+document.getElementById('confirmOverlay').style.display = 'none';
+renderControls();
+renderChart();
+
+// Re-render chart on resize
+let resizeTimeout;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimeout);
+  resizeTimeout = setTimeout(renderChart, 100);
+});
+
+// Close confirm on escape
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeConfirm();
+});
+</script>
+</body>
+</html>
